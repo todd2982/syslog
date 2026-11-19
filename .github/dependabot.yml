@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Base image in the Dockerfile (alpine).
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    target-branch: dev
+    labels: [dependencies, docker]
+    commit-message:
+      prefix: "deps(docker)"
+
+  # Actions used in .github/workflows (pinned by commit SHA).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    target-branch: dev
+    labels: [dependencies, github-actions]
+    commit-message:
+      prefix: "deps(actions)"
+    groups:
+      actions:
+        patterns: ["*"]

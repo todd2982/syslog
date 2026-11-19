@@ -1,0 +1,5 @@
+# Only the Dockerfile, config/ and scripts/ are needed in the build context.
+*
+!Dockerfile
+!config
+!scripts

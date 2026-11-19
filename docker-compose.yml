@@ -1,0 +1,35 @@
+services:
+  syslog:
+    build: .
+    image: ghcr.io/todd2982/syslog:latest
+    container_name: syslog
+    restart: unless-stopped
+    ports:
+      # Host 514 -> container 5514 (the container runs as a non-root user).
+      - "514:5514/udp"
+      - "514:5514/tcp"
+      # TLS (see README) - uncomment after enabling it in config/rsyslog.conf.
+      # - "6514:6514/tcp"
+    environment:
+      TZ: America/Chicago
+      RETENTION_DAYS: "30"
+      COMPRESS_AFTER_DAYS: "1"
+    volumes:
+      - syslog-data:/var/log/remote
+      # - ./certs:/certs:ro
+    read_only: true
+    tmpfs:
+      - /var/lib/rsyslog:uid=10514,gid=10514,mode=0750
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  syslog-data:
