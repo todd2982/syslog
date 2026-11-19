@@ -6,7 +6,6 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    target-branch: dev
     labels: [dependencies, docker]
     commit-message:
       prefix: "deps(docker)"
@@ -17,7 +16,6 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    target-branch: dev
     labels: [dependencies, github-actions]
     commit-message:
       prefix: "deps(actions)"
