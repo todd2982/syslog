@@ -20,7 +20,7 @@ A small syslog server in a container. It receives syslog from other devices over
 On any host with Docker and the Compose plugin:
 
 ```sh
-git clone -b dev https://github.com/todd2982/syslog.git
+git clone https://github.com/todd2982/syslog.git
 cd syslog
 docker compose up -d --build
 ```
@@ -35,8 +35,10 @@ docker compose logs -f   # rsyslog's own messages
 Allow inbound **514/udp and 514/tcp** on the host firewall, then point your
 devices at the host's IP address on port 514.
 
-Once an image has been published to GHCR (see CI below), you can skip the
-build and pull it instead: `docker compose pull && docker compose up -d`.
+Once an image has been published to GHCR (see Image tags below), you can skip
+the build and pull it instead: `docker compose pull && docker compose up -d`.
+`docker-compose.yml` uses `:latest`, the newest release. Change it to `:dev` to
+run whatever is on `main`, or to a version such as `:1.2.3` to pin one.
 
 ### Settings
 
@@ -109,11 +111,27 @@ tests/smoke-test.sh syslog:test
 
 | Workflow | Runs on | What it does |
 | --- | --- | --- |
-| `ci.yml` | every push and PR, weekly | Hadolint, ShellCheck, Compose validation, build, smoke test (UDP + TCP messages must land in the per-host file), Trivy scan that fails on fixable HIGH/CRITICAL CVEs |
+| `ci.yml` | pushes to `main`, every PR, weekly | Hadolint, ShellCheck, Compose validation, build, smoke test (UDP + TCP messages must land in the per-host file), Trivy scan that fails on fixable HIGH/CRITICAL CVEs |
 | `publish.yml` | push to `main`, `v*.*.*` tags | Smoke test, then builds amd64 + arm64 and pushes to `ghcr.io/todd2982/syslog` |
 
-Dependabot opens weekly PRs against `dev` for the Alpine base image and for the
+Dependabot opens weekly PRs against `main` for the Alpine base image and for the
 GitHub Actions, which are pinned to commit SHAs.
+
+### Image tags
+
+| Event | Tags pushed to `ghcr.io/todd2982/syslog` |
+| --- | --- |
+| Push or merge to `main` | `dev`, `sha-<short sha>` (`latest` is not changed) |
+| Git tag `v1.2.3` | `1.2.3`, `1.2`, `1`, and `latest` moves to this image |
+| Git tag `v1.2.3-rc.1` (pre-release) | `1.2.3-rc.1` only, `latest` stays put |
+
+To cut a release from the current `main`:
+
+```sh
+git checkout main && git pull
+git tag v1.0.0
+git push origin v1.0.0
+```
 
 ## Files
 
