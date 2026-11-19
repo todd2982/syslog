@@ -13,7 +13,11 @@ HOST="smoke-test-host"
 # shellcheck disable=SC2329
 cleanup() {
   if [ "${FAILED:-0}" = 1 ]; then
+    echo "--- container state ---"
+    docker inspect -f '{{json .State}}' "$NAME" 2>&1 || true
     echo "--- container logs ---"; docker logs "$NAME" 2>&1 || true
+    echo "--- processes and sockets ---"
+    docker exec "$NAME" sh -c 'ps; netstat -ltun; ls -la /var/log/remote /var/lib/rsyslog' 2>&1 || true
   fi
   docker rm -f "$NAME" >/dev/null 2>&1 || true
 }
@@ -23,12 +27,15 @@ docker run -d --name "$NAME" \
   -p "127.0.0.1:${PORT}:5514/udp" -p "127.0.0.1:${PORT}:5514/tcp" \
   --read-only --tmpfs /var/lib/rsyslog:uid=10514,gid=10514 --tmpfs /tmp \
   --cap-drop ALL --security-opt no-new-privileges:true \
+  --health-interval 3s --health-start-period 5s \
   "$IMAGE" >/dev/null
 
 echo "Waiting for the container to report healthy..."
 for _ in $(seq 1 30); do
   status=$(docker inspect -f '{{.State.Health.Status}}' "$NAME" 2>/dev/null || echo starting)
   [ "$status" = healthy ] && break
+  running=$(docker inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null || echo false)
+  if [ "$running" != true ]; then echo "Container stopped"; FAILED=1; exit 1; fi
   sleep 2
 done
 if [ "$status" != healthy ]; then
