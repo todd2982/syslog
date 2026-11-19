@@ -1,6 +1,9 @@
 #!/bin/sh
-# Healthy when rsyslogd is running and listening on 5514 for both UDP and TCP.
-pgrep -x rsyslogd >/dev/null || exit 1
-netstat -ltn 2>/dev/null | grep -q ':5514 ' || exit 1
-netstat -lun 2>/dev/null | grep -q ':5514 ' || exit 1
-exit 0
+# Healthy when something (rsyslogd) is listening on 5514 for both TCP and UDP.
+if ! netstat -ltn | grep -q ':5514[[:space:]]'; then
+  echo "not listening on 5514/tcp"; exit 1
+fi
+if ! netstat -lun | grep -q ':5514[[:space:]]'; then
+  echo "not listening on 5514/udp"; exit 1
+fi
+echo "ok"
