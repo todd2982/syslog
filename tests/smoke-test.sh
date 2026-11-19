@@ -9,7 +9,8 @@ PORT="${SMOKE_PORT:-15514}"
 TOKEN="smoke-$(date +%s)-$RANDOM"
 HOST="smoke-test-host"
 
-# shellcheck disable=SC2329  # called by the EXIT trap below
+# Called by the EXIT trap below.
+# shellcheck disable=SC2329
 cleanup() {
   if [ "${FAILED:-0}" = 1 ]; then
     echo "--- container logs ---"; docker logs "$NAME" 2>&1 || true
