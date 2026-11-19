@@ -31,7 +31,7 @@ EXPOSE 5514/udp 5514/tcp
 
 VOLUME ["/var/log/remote"]
 
-USER syslog:syslog
+USER 10514:10514
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["/usr/local/bin/healthcheck.sh"]
