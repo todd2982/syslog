@@ -40,9 +40,10 @@ VOLUME ["/var/log/remote"]
 
 # No USER here on purpose: the entrypoint starts as root only to make the log
 # folder writable (a bind-mounted host folder is usually root-owned), then
-# drops to PUID:PGID with su-exec. rsyslog itself never runs as root.
+# drops to PUID:PGID with su-exec and starts tini as PID 1 under that user.
+# Nothing keeps running as root.
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["/usr/local/bin/healthcheck.sh"]
 
-ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

@@ -100,6 +100,12 @@ run_case() { # case-name, extra docker run args...
   [ "$uid" = 10514 ] || fail "rsyslogd runs as uid ${uid:-unknown}, expected 10514"
   echo "PASS: rsyslogd runs as uid $uid"
 
+  # PID 1 (tini) must not stay root or keep any capabilities.
+  local pid1
+  pid1=$(docker exec "$NAME" awk '/^Uid:/{u=$2} /^CapEff:/{c=$2} END{print u, c}' /proc/1/status)
+  [ "$pid1" = "10514 0000000000000000" ] || fail "PID 1 uid and capabilities: $pid1"
+  echo "PASS: PID 1 runs as uid 10514 with no capabilities"
+
   # The health check must also drop to the unprivileged user.
   local health
   health=$(docker inspect -f '{{range .State.Health.Log}}{{.Output}}{{end}}' "$NAME")

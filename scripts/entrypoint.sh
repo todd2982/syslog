@@ -18,7 +18,7 @@ if [ "$PUID" -eq 0 ]; then
 fi
 
 # Started as root: take ownership of the log and work folders, then re-run this
-# script as PUID:PGID. A host folder that Docker creates for a bind mount is
+# script as PUID:PGID under tini, so PID 1 doesn't stay root either. A host folder that Docker creates for a bind mount is
 # owned by root with mode 755, so without this rsyslog could not create the
 # per-host folders inside it. Needs the CHOWN, SETUID and SETGID capabilities.
 if [ "$(id -u)" = 0 ]; then
@@ -38,7 +38,13 @@ if [ "$(id -u)" = 0 ]; then
   # can't hand a file outside it (for example this script) to PUID.
   find "$LOG_DIR" -xdev ! -type l \( ! -user "$PUID" -o ! -group "$PGID" \) \
     -exec chown -h "$PUID:$PGID" {} + 2>/dev/null || true
-  exec su-exec "$PUID:$PGID" "$0" "$@"
+  exec su-exec "$PUID:$PGID" /sbin/tini -- "$0" "$@"
+fi
+
+# Started directly as a non-root user (for example with --user): put tini in
+# front as PID 1 to reap children and pass signals on.
+if [ "$$" = 1 ]; then
+  exec /sbin/tini -- "$0" "$@"
 fi
 
 if ! [ -w "$LOG_DIR" ]; then
