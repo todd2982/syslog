@@ -14,7 +14,9 @@ RUN apk add --no-cache rsyslog tini tzdata \
     && adduser -S -D -H -u 10514 -G syslog -s /sbin/nologin syslog \
     && mkdir -p /var/log/remote /var/lib/rsyslog \
     && chown -R syslog:syslog /var/log/remote /var/lib/rsyslog \
-    && rm -f /etc/rsyslog.conf /etc/rsyslog.d/*.conf
+    && rm -f /etc/rsyslog.conf /etc/rsyslog.d/*.conf \
+    && mkdir -p /var/log/remote \
+    && chmod -R 0775 /var/log/remote
 
 COPY --chmod=0644 config/rsyslog.conf /etc/rsyslog.conf
 COPY --chmod=0755 scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
