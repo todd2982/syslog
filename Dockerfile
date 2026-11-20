@@ -15,6 +15,7 @@ RUN apk add --no-cache rsyslog tini tzdata \
     && mkdir -p /var/log/remote /var/lib/rsyslog \
     && chown -R syslog:syslog /var/log/remote /var/lib/rsyslog \
     && rm -f /etc/rsyslog.conf /etc/rsyslog.d/*.conf \
+    && mkdir -p /var/log/remote \
     && chmod -R 0775 /var/log/remote
 
 COPY --chmod=0644 config/rsyslog.conf /etc/rsyslog.conf
