@@ -9,6 +9,7 @@ COMPRESS_AFTER_DAYS="${COMPRESS_AFTER_DAYS:-1}"
 if [ ! -d "$LOG_DIR" ]; then
   echo "Creating directory..."
   mkdir -p "$LOG_DIR"
+  chmod -R 0775 "$LOG_DIR"
 fi
 
 case "$RETENTION_DAYS$COMPRESS_AFTER_DAYS" in
