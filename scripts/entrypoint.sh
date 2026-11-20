@@ -11,6 +11,11 @@ PGID="${PGID:-10514}"
 case "$PUID$PGID" in
   *[!0-9]*) echo "PUID and PGID must be numeric" >&2; exit 1 ;;
 esac
+# rsyslog must not run as root, and PUID=0 would make the root branch below
+# re-run this script as root forever.
+if [ "$PUID" -eq 0 ]; then
+  echo "PUID must not be 0 (root)" >&2; exit 1
+fi
 
 # Started as root: take ownership of the log and work folders, then re-run this
 # script as PUID:PGID. A host folder that Docker creates for a bind mount is

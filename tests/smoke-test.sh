@@ -102,6 +102,14 @@ run_case() { # case-name, extra docker run args...
   cleanup
 }
 
+# PUID=0 must be refused instead of looping or running rsyslog as root.
+CASE=puid0
+if out=$(timeout 20 docker run --rm -e PUID=0 "$IMAGE" 2>&1); then
+  fail "container started with PUID=0"
+fi
+echo "$out" | grep -q "PUID must not be 0" || fail "unexpected output with PUID=0: $out"
+echo "PASS: PUID=0 is refused"
+
 run_case volume -v "syslog-smoke-$$:/var/log/remote"
 docker volume rm "syslog-smoke-$$" >/dev/null 2>&1 || true
 
