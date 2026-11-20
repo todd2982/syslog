@@ -32,7 +32,8 @@ if [ "$(id -u)" = 0 ]; then
       exit 1
     fi
   done
-  # Hand over anything left from an earlier run or another owner.
+  # Hand over anything left from an earlier run or another owner. Anything this
+  # can't reach or change is reported below, once running as PUID:PGID.
   find "$LOG_DIR" -xdev \( ! -user "$PUID" -o ! -group "$PGID" \) \
     -exec chown "$PUID:$PGID" {} + 2>/dev/null || true
   exec su-exec "$PUID:$PGID" "$0" "$@"
@@ -42,6 +43,16 @@ if ! [ -w "$LOG_DIR" ]; then
   echo "$LOG_DIR is not writable by uid $(id -u). On the host, run:" >&2
   echo "  chown $(id -u):$(id -g) <the folder mounted at $LOG_DIR>" >&2
   exit 1
+fi
+
+# Warn about anything rsyslog may not be able to write to: entries owned by
+# someone else (for example on an NFS export that squashes root) or folders
+# it can't read. Messages for those hosts would otherwise be lost silently.
+stray=$(find "$LOG_DIR" -xdev ! -user "$(id -u)" 2>&1 | head -n 20)
+if [ -n "$stray" ]; then
+  echo "Warning: rsyslog (uid $(id -u)) may not be able to write to these under $LOG_DIR:" >&2
+  echo "$stray" >&2
+  echo "Fix on the host with: chown -R $(id -u):$(id -g) <the folder mounted at $LOG_DIR>" >&2
 fi
 
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
