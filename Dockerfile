@@ -8,8 +8,10 @@ LABEL org.opencontainers.image.title="syslog" \
 
 # rsyslog: the receiver. tini: tiny init for clean signal handling and zombie reaping.
 # tzdata: lets the TZ variable set the time zone used in file names and timestamps.
+# su-exec: lets the entrypoint fix ownership of the log folder as root, then drop
+# to the syslog user before rsyslog starts.
 # hadolint ignore=DL3018
-RUN apk add --no-cache rsyslog tini tzdata \
+RUN apk add --no-cache rsyslog tini tzdata su-exec \
     && addgroup -S -g 10514 syslog \
     && adduser -S -D -H -u 10514 -G syslog -s /sbin/nologin syslog \
     && mkdir -p /var/log/remote /var/lib/rsyslog \
@@ -23,17 +25,22 @@ COPY --chmod=0755 scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chmod=0755 scripts/healthcheck.sh /usr/local/bin/healthcheck.sh
 
 # Days to keep log files, and age in days after which files are gzipped (0 turns compression off).
+# PUID/PGID: the user and group rsyslog runs as and that owns the log files.
 ENV RETENTION_DAYS=30 \
     COMPRESS_AFTER_DAYS=1 \
-    TZ=UTC
+    TZ=UTC \
+    PUID=10514 \
+    PGID=10514
 
-# The container listens on unprivileged port 5514 so it can run without root.
+# rsyslog listens on unprivileged port 5514 so it can run without root.
 # Map host port 514 to it (see docker-compose.yml).
 EXPOSE 5514/udp 5514/tcp
 
 VOLUME ["/var/log/remote"]
 
-USER 10514:10514
+# No USER here on purpose: the entrypoint starts as root only to make the log
+# folder writable (a bind-mounted host folder is usually root-owned), then
+# drops to PUID:PGID with su-exec. rsyslog itself never runs as root.
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["/usr/local/bin/healthcheck.sh"]

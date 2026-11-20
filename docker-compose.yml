@@ -5,7 +5,7 @@ services:
     container_name: syslog
     restart: unless-stopped
     ports:
-      # Host 514 -> container 5514 (the container runs as a non-root user).
+      # Host 514 -> container 5514 (rsyslog runs as a non-root user).
       - "514:5514/udp"
       - "514:5514/tcp"
       # TLS (see README) - uncomment after enabling it in config/rsyslog.conf.
@@ -14,8 +14,13 @@ services:
       TZ: America/Chicago
       RETENTION_DAYS: "30"
       COMPRESS_AFTER_DAYS: "1"
+      # User and group that rsyslog runs as and that own the log files.
+      PUID: "10514"
+      PGID: "10514"
     volumes:
       - syslog-data:/var/log/remote
+      # Or keep logs in a host folder (created and handed to PUID:PGID at start):
+      # - /srv/syslog:/var/log/remote
       # - ./certs:/certs:ro
     read_only: true
     tmpfs:
@@ -23,6 +28,11 @@ services:
       - /tmp
     cap_drop:
       - ALL
+    cap_add:
+      # Only used at startup to hand the log folder to PUID:PGID and drop root.
+      - CHOWN
+      - SETUID
+      - SETGID
     security_opt:
       - no-new-privileges:true
     logging:

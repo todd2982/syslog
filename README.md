@@ -6,8 +6,11 @@ A small syslog server in a container. It receives syslog from other devices over
 - **Base image:** `alpine:3.24` with **rsyslog**. Alpine keeps the image small
   (a few MB plus rsyslog), and rsyslog is the standard Linux syslog daemon. It
   handles UDP, TCP and TLS, and its per-host file templates need no extra tooling.
-- **Runs as a non-root user** (`syslog`, UID 10514) with all capabilities dropped.
-  Inside the container rsyslog listens on 5514, and Compose maps host port 514 to it.
+- **rsyslog runs as a non-root user** (UID 10514 by default). The container
+  starts as root only long enough to hand the log folder to that user, then drops
+  to it. Compose keeps just the three capabilities that needs (`CHOWN`, `SETUID`,
+  `SETGID`). Inside the container rsyslog listens on 5514, and Compose maps host
+  port 514 to it.
 - **Log layout:** `/var/log/remote/<hostname>/YYYY-MM-DD.log` on a named volume.
 - **Rotation:** files roll over daily by name. An hourly job gzips files older than
   `COMPRESS_AFTER_DAYS` (default 1) and deletes files older than `RETENTION_DAYS`
@@ -49,18 +52,33 @@ Change these in `docker-compose.yml`:
 | `TZ` | `America/Chicago` | Time zone for file names and timestamps |
 | `RETENTION_DAYS` | `30` | Delete log files older than this. `0` keeps them forever |
 | `COMPRESS_AFTER_DAYS` | `1` | Gzip files older than this. `0` turns compression off |
+| `PUID` / `PGID` | `10514` | User and group rsyslog runs as and that own the log files |
 
 ### Storing logs in a host folder instead of a volume
 
-Replace the volume line with a bind mount and give the folder to UID 10514:
+Replace the volume line with a bind mount:
+
+```yaml
+    volumes:
+      - /srv/syslog:/var/log/remote
+```
+
+The folder doesn't need any preparation. If it doesn't exist, Docker creates it
+owned by root, and the container hands it to `PUID:PGID` at startup. To make the
+files readable by your own account on the host, set `PUID` and `PGID` to your
+user's IDs (`id -u` and `id -g`).
+
+If you'd rather not give the container `CHOWN`, `SETUID` and `SETGID`, prepare
+the folder on the host and start the container as that user instead:
 
 ```sh
 sudo mkdir -p /srv/syslog && sudo chown 10514:10514 /srv/syslog
 ```
 
 ```yaml
-    volumes:
-      - /srv/syslog:/var/log/remote
+    user: "10514:10514"
+    cap_drop:
+      - ALL
 ```
 
 ### TLS on 6514 (optional)
