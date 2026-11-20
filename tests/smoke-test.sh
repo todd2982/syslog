@@ -99,6 +99,12 @@ run_case() { # case-name, extra docker run args...
   [ "$uid" = 10514 ] || fail "rsyslogd runs as uid ${uid:-unknown}, expected 10514"
   echo "PASS: rsyslogd runs as uid $uid"
 
+  # The health check must also drop to the unprivileged user.
+  local health
+  health=$(docker inspect -f '{{range .State.Health.Log}}{{.Output}}{{end}}' "$NAME")
+  echo "$health" | grep -q "ok (uid 10514)" || fail "health check output: $health"
+  echo "PASS: health check runs as uid 10514"
+
   cleanup
 }
 
