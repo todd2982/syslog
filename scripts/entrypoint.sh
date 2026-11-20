@@ -53,14 +53,22 @@ if ! [ -w "$LOG_DIR" ]; then
   exit 1
 fi
 
-# Warn about anything rsyslog may not be able to write to: entries owned by
-# someone else (for example on an NFS export that squashes root) or folders
-# it can't read. Messages for those hosts would otherwise be lost silently.
-stray=$(find "$LOG_DIR" -xdev ! -user "$(id -u)" 2>&1 | head -n 20)
+# Give back write access that was taken away from our own files and folders
+# (for example a log file set to 0444), or rsyslog can't append to them. This
+# runs as PUID, so chmod can only ever change files that PUID already owns.
+find "$LOG_DIR" -xdev -type d -user "$(id -u)" ! -perm -0700 -exec chmod u+rwx {} + 2>/dev/null || true
+find "$LOG_DIR" -xdev -type f -user "$(id -u)" ! -perm -0600 -exec chmod u+rw {} + 2>/dev/null || true
+
+# Warn about anything rsyslog may still not be able to write to: entries owned
+# by someone else (for example on an NFS export that squashes root), our own
+# entries that are still not writable, or folders it can't read. Messages for
+# those hosts would otherwise be lost silently.
+stray=$(find "$LOG_DIR" -xdev \( ! -user "$(id -u)" -o -type d ! -perm -0700 -o -type f ! -perm -0600 \) 2>&1 | head -n 20)
 if [ -n "$stray" ]; then
   echo "Warning: rsyslog (uid $(id -u)) may not be able to write to these under $LOG_DIR:" >&2
   echo "$stray" >&2
   echo "Fix on the host with: chown -R $(id -u):$(id -g) <the folder mounted at $LOG_DIR>" >&2
+  echo "and: chmod -R u+rwX <the folder mounted at $LOG_DIR>" >&2
 fi
 
 RETENTION_DAYS="${RETENTION_DAYS:-30}"

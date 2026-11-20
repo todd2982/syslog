@@ -5,6 +5,8 @@
 #   bind   - logs on a host folder that Docker creates (root-owned, mode 755),
 #            the way a fresh bind mount like /tmp/syslog/remote starts out
 #   links  - a symlink in the log folder must not hand its target to the syslog user
+#   readonly - an existing per-host folder and today's log set read-only
+#            must be made writable again so messages still land
 # Usage: tests/smoke-test.sh [image]
 set -euo pipefail
 
@@ -37,7 +39,7 @@ on_exit() {
   cleanup
   if [ -n "$BIND_PARENT" ]; then
     # Files in the bind folder belong to the container's user; remove them from inside.
-    docker run --rm --entrypoint rm -v "$BIND_PARENT:/cleanup" "$IMAGE" -rf /cleanup/remote /cleanup/links >/dev/null 2>&1 || true
+    docker run --rm --entrypoint rm -v "$BIND_PARENT:/cleanup" "$IMAGE" -rf /cleanup/remote /cleanup/links /cleanup/readonly >/dev/null 2>&1 || true
     rmdir "$BIND_PARENT" 2>/dev/null || true
   fi
 }
@@ -143,3 +145,13 @@ run_case links -v "$BIND_PARENT/links/remote:/var/log/remote" -v "$BIND_PARENT/l
 owner=$(stat -c %u "$BIND_PARENT/links/outside/target")
 [ "$owner" = "$(id -u)" ] || fail "symlink target outside the log folder was handed to uid $owner"
 echo "PASS: symlink target outside the log folder kept its owner"
+
+# A per-host folder and today's log file left read-only (0555 and 0444) from
+# an earlier run must be made writable again, or new messages would be lost.
+ro_dir="$BIND_PARENT/readonly/remote/$HOST"
+mkdir -p "$ro_dir"
+echo "old line" > "$ro_dir/$(date -u '+%Y-%m-%d').log"
+chmod 0444 "$ro_dir/$(date -u '+%Y-%m-%d').log"
+chmod 0555 "$ro_dir"
+run_case readonly -v "$BIND_PARENT/readonly/remote:/var/log/remote"
+echo "PASS: read-only per-host folder and log file were made writable again"
