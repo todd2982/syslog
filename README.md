@@ -75,11 +75,17 @@ the folder on the host and start the container as that user instead:
 sudo mkdir -p /srv/syslog && sudo chown 10514:10514 /srv/syslog
 ```
 
+In `docker-compose.yml`, add the `user` line and **delete the whole `cap_add`
+block**, so the service keeps only:
+
 ```yaml
     user: "10514:10514"
     cap_drop:
       - ALL
 ```
+
+If you use a user other than 10514, change the `uid` and `gid` on the
+`/var/lib/rsyslog` tmpfs line to match, since nothing chowns it in this setup.
 
 ### TLS on 6514 (optional)
 
