@@ -6,6 +6,11 @@ LOG_DIR=/var/log/remote
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 COMPRESS_AFTER_DAYS="${COMPRESS_AFTER_DAYS:-1}"
 
+if [ ! -d "$LOG_DIR" ]; then
+  echo "Creating directory..."
+  mkdir -p "$LOG_DIR"
+fi
+
 case "$RETENTION_DAYS$COMPRESS_AFTER_DAYS" in
   *[!0-9]*) echo "RETENTION_DAYS and COMPRESS_AFTER_DAYS must be whole numbers" >&2; exit 1 ;;
 esac
