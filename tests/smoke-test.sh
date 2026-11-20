@@ -4,6 +4,7 @@
 #   volume - logs on a Docker volume
 #   bind   - logs on a host folder that Docker creates (root-owned, mode 755),
 #            the way a fresh bind mount like /tmp/syslog/remote starts out
+#   links  - a symlink in the log folder must not hand its target to the syslog user
 # Usage: tests/smoke-test.sh [image]
 set -euo pipefail
 
@@ -36,7 +37,7 @@ on_exit() {
   cleanup
   if [ -n "$BIND_PARENT" ]; then
     # Files in the bind folder belong to the container's user; remove them from inside.
-    docker run --rm --entrypoint rm -v "$BIND_PARENT:/cleanup" "$IMAGE" -rf /cleanup/remote >/dev/null 2>&1 || true
+    docker run --rm --entrypoint rm -v "$BIND_PARENT:/cleanup" "$IMAGE" -rf /cleanup/remote /cleanup/links >/dev/null 2>&1 || true
     rmdir "$BIND_PARENT" 2>/dev/null || true
   fi
 }
@@ -126,3 +127,13 @@ run_case bind -v "$BIND_PARENT/remote:/var/log/remote"
 owner=$(stat -c %u "$BIND_PARENT/remote/$HOST" 2>/dev/null || echo missing)
 [ "$owner" = 10514 ] || fail "host folder $BIND_PARENT/remote/$HOST is owned by $owner, expected 10514"
 echo "PASS: per-host folder created on the host bind mount, owned by uid 10514"
+
+# A symlink in the log folder that points outside it must not give the target
+# to the syslog user when the entrypoint hands the folder over as root.
+mkdir -p "$BIND_PARENT/links/remote" "$BIND_PARENT/links/outside"
+echo keep > "$BIND_PARENT/links/outside/target"
+ln -s /outside/target "$BIND_PARENT/links/remote/escape"
+run_case links -v "$BIND_PARENT/links/remote:/var/log/remote" -v "$BIND_PARENT/links/outside:/outside"
+owner=$(stat -c %u "$BIND_PARENT/links/outside/target")
+[ "$owner" = "$(id -u)" ] || fail "symlink target outside the log folder was handed to uid $owner"
+echo "PASS: symlink target outside the log folder kept its owner"

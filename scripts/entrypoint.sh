@@ -25,7 +25,7 @@ if [ "$(id -u)" = 0 ]; then
   mkdir -p "$LOG_DIR" "$WORK_DIR"
   for dir in "$LOG_DIR" "$WORK_DIR"; do
     [ "$(stat -c %u:%g "$dir")" = "$PUID:$PGID" ] && continue
-    if ! chown "$PUID:$PGID" "$dir"; then
+    if ! chown -h "$PUID:$PGID" "$dir"; then
       echo "Could not hand $dir to $PUID:$PGID. Give the container the CHOWN," >&2
       echo "SETUID and SETGID capabilities (see docker-compose.yml), or run" >&2
       echo "'chown $PUID:$PGID <host folder>' on the host and start it with --user $PUID:$PGID." >&2
@@ -34,8 +34,10 @@ if [ "$(id -u)" = 0 ]; then
   done
   # Hand over anything left from an earlier run or another owner. Anything this
   # can't reach or change is reported below, once running as PUID:PGID.
-  find "$LOG_DIR" -xdev \( ! -user "$PUID" -o ! -group "$PGID" \) \
-    -exec chown "$PUID:$PGID" {} + 2>/dev/null || true
+  # Symlinks are skipped and -h never follows one, so a link in the log folder
+  # can't hand a file outside it (for example this script) to PUID.
+  find "$LOG_DIR" -xdev ! -type l \( ! -user "$PUID" -o ! -group "$PGID" \) \
+    -exec chown -h "$PUID:$PGID" {} + 2>/dev/null || true
   exec su-exec "$PUID:$PGID" "$0" "$@"
 fi
 
