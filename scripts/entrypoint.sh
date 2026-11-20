@@ -47,17 +47,19 @@ if [ "$$" = 1 ]; then
   exec /sbin/tini -- "$0" "$@"
 fi
 
+# Give back write access that was taken away from our own files and folders
+# (for example a log file set to 0444, or the log folder itself set to 0555),
+# or rsyslog can't write to them. This runs before the check below so it can
+# repair the log folder too, and as PUID, so chmod can only ever change files
+# that PUID already owns.
+find "$LOG_DIR" -xdev -type d -user "$(id -u)" ! -perm -0700 -exec chmod u+rwx {} + 2>/dev/null || true
+find "$LOG_DIR" -xdev -type f -user "$(id -u)" ! -perm -0600 -exec chmod u+rw {} + 2>/dev/null || true
+
 if ! [ -w "$LOG_DIR" ]; then
   echo "$LOG_DIR is not writable by uid $(id -u). On the host, run:" >&2
   echo "  chown $(id -u):$(id -g) <the folder mounted at $LOG_DIR>" >&2
   exit 1
 fi
-
-# Give back write access that was taken away from our own files and folders
-# (for example a log file set to 0444), or rsyslog can't append to them. This
-# runs as PUID, so chmod can only ever change files that PUID already owns.
-find "$LOG_DIR" -xdev -type d -user "$(id -u)" ! -perm -0700 -exec chmod u+rwx {} + 2>/dev/null || true
-find "$LOG_DIR" -xdev -type f -user "$(id -u)" ! -perm -0600 -exec chmod u+rw {} + 2>/dev/null || true
 
 # Warn about anything rsyslog may still not be able to write to: entries owned
 # by someone else (for example on an NFS export that squashes root), our own
